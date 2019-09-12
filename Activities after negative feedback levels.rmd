@@ -1,0 +1,210 @@
+---
+title: "Activities after negative feedback initial vs sustained"
+author: "Mabi Harandi"
+date: "3/29/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(TraMineR)
+library(cluster)
+library(WeightedCluster)
+aggnegsus <- wcAggregateCases(trajectory_data_sustained [, 5:14])
+uniquenegsus <- trajectory_data_sustained[aggnegsus$aggIndex, 5:14]
+negsus.seq <- seqdef(uniquenegsus, weights = aggnegsus$aggWeights)
+
+submat.sus   <- seqsubm(negsus.seq, method= "TRATE")
+dist.om1.sus <- seqdist(negsus.seq, method="OM", indel=1, sm=submat.sus) 
+
+trajectory_data_initial <- read.csv ("results_negative_initial.csv")
+trajectory_data_sustained <- read.csv ("results_negative_sustained.csv")
+
+
+trajectory_data_initial.labels <- c( "community", "correct", "impressions" ,"incorrect" ,"learn",  "NonGold", "socialize", "task","viewing")
+trajectory_data_initial.scodes <- c("CM", "CR", "IM" , "IC", "LR", "NG", "SO", "TA", "VI")
+
+trajectory_data_initial.seq <- seqdef(trajectory_data_initial, 5:14, states=trajectory_data_initial.scodes, labels=trajectory_data_initial.labels, missing=NA, void="%", nr="*")
+
+trajectory_data_sustained.labels <- c( "community", "correct", "impressions" ,"incorrect" ,"learn",  "NonGold", "socialize", "task","viewing")
+trajectory_data_sustained.scodes <- c("CM", "CR", "IM" , "IC", "LR", "NG", "SO", "TA", "VI")
+
+trajectory_data_sustained.seq <- seqdef(trajectory_data_sustained, 5:14, states=trajectory_data_sustained.scodes, labels= trajectory_data_sustained.labels, missing=NA, void="%", nr="*")
+
+# sequence turbulences
+trajectory_data.turb <- seqST(trajectory_data_initial.seq)
+trajectory_data_sus.turb <- seqST(trajectory_data_sustained.seq)
+
+#Compute the optimal matching distances using substitution costs based on transition rates observed in the data and a 1 indel cost. The resulting distance matrix is stored in the dist.om1 object.
+submat   <- seqsubm(trajectory_data_initial.seq, method= "TRATE")
+dist.om1 <- seqdist(trajectory_data_initial.seq, method="OM", indel=1, sm=submat) 
+
+submat.sus   <- seqsubm(trajectory_data_sustained.seq, method= "TRATE")
+dist.om1.sus <- seqdist(trajectory_data_sustained.seq, method="OM", indel=1, sm=submat.sus) 
+
+clusterward1 <- agnes(dist.om1, diss=TRUE, method="ward")
+cl1.3 <- cutree(clusterward1, k=2)
+cl1.3fac <- factor(cl1.3, labels = c("Type 1", "Type 2")) 
+
+clusterward1.sus <- agnes(dist.om1.sus, diss=TRUE, method="ward")
+cl1.3.sus <- cutree(clusterward1.sus, k=2)
+cl1.3fac.sus <- factor(cl1.3.sus, labels = c("Type 1", "Type 2")) 
+
+#Create event sequences from the state sequences.
+trajectory_data_initial.seqe <- seqecreate(trajectory_data_initial.seq)
+fsubseq <- seqefsub(trajectory_data_initial.seqe, pmin.support = 0.05)
+
+trajectory_data_sustained.seqe <- seqecreate(trajectory_data_sustained.seq)
+fsubseq.sus <- seqefsub(trajectory_data_sustained.seqe, pmin.support = 0.05)
+
+#Determine the most discriminating transitions between clusters and plot the frequencies by cluster of the 5 first ones.
+discr <- seqecmpgroup(fsubseq, group=cl1.3fac)
+
+discr.sus <- seqecmpgroup(fsubseq.sus, group=cl1.3fac.sus)
+
+
+```
+
+## Trajectory analysis using TraMineR
+
+
+
+**Index plot of first 10 sequences of volunteers with initial contributions:
+
+
+```{r plot1initial, echo=FALSE}
+seqiplot(trajectory_data_initial.seq, withlegend=F)
+seqlegend(trajectory_data_initial.seq) 
+
+
+```
+
+
+
+
+**Index plot of first 10 sequences of volunteers with sustained contributions:
+```{r plot1sustained, echo=FALSE}
+
+
+seqiplot(trajectory_data_sustained.seq, withlegend=F)
+seqlegend(trajectory_data_sustained.seq)
+```
+
+**Frequency plot of 10 most frequent sequence of volunteers with initial contributions:
+
+
+```{r plot2initial, echo=FALSE}
+seqfplot(trajectory_data_initial.seq, pbarw=T, withlegend=F) 
+seqlegend(trajectory_data_initial.seq) 
+
+```
+
+
+
+**Frequency plot of 10 most frequent sequence of volunteers with sustained contributions:
+
+```{r plot2sustained, echo=FALSE}
+
+seqfplot(trajectory_data_sustained.seq, pbarw=T, withlegend=F) 
+seqlegend(trajectory_data_sustained.seq) 
+
+```
+
+
+
+
+
+**typology of the trajectories; A Ward hierarchical clustering of the sequences from the optimal matching distances and retrieve for each individual sequence the cluster membership of the 3 class solution.
+
+** typology of the trajectories of volunteers with initial contributions:
+
+
+
+
+```{r plot3, echo=FALSE}
+
+seqdplot(trajectory_data_initial.seq, group=cl1.3fac)
+seqlegend(trajectory_data_initial.seq)
+
+```
+
+
+** typology of the trajectories of volunteers with sustained contributions:
+
+
+```{r plot3sustained, echo=FALSE}
+
+seqdplot(trajectory_data_sustained.seq, group=cl1.3fac.sus)
+
+seqlegend(trajectory_data_sustained.seq)
+
+```
+
+
+
+The 10 most frequent sequences of each cluster of volunteers with initial contributions:
+
+```{r plot4, echo=FALSE}
+
+seqfplot(trajectory_data_initial.seq, group=cl1.3fac, pbarw=T)
+seqlegend(trajectory_data_initial.seq)
+
+```
+
+
+
+The 10 most frequent sequences of each cluster of volunteers with sustained contributions:
+
+```{r plot4sustained, echo=FALSE}
+
+
+seqfplot(trajectory_data_sustained.seq, group=cl1.3fac.sus, pbarw=T)
+seqlegend(trajectory_data_sustained.seq)
+```
+
+
+
+**The 10 most frequent event subsequences of volunteers with initial contributions:
+ ---event sequences are created from the state sequences
+
+```{r plot5, echo=FALSE}
+
+plot(fsubseq[1:10], col="cyan")
+
+
+```
+
+
+
+
+**The 10 most frequent event subsequences of volunteers with sustained contributions:
+ ---event sequences are created from the state sequences
+
+```{r plot5sustained, echo=FALSE}
+
+
+plot(fsubseq.sus[1:10], col="cyan")
+
+```
+
+**The most discriminating transitions between clusters and plot the frequencies by cluster of the first five ones. for volunteers with initial contributions
+
+
+```{r plot6, echo=FALSE}
+
+plot(discr[1:5])
+
+
+
+```
+
+**The most discriminating transitions between clusters and plot the frequencies by cluster of the first five ones. For volunteers with sustained contributions
+
+
+```{r plot6sustained, echo=FALSE}
+
+
+plot(discr.sus[1:5])
+
+```
